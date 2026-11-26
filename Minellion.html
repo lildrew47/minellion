@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minellion</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#ffcc33;--lava:#ff5a1f;--gem:#4fe3c1;--ink:#0d0b10;--paper:#f4e9d0;--f:"Press Start 2P","Courier New",monospace;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+@supports(height:100dvh){html{height:100dvh}}
+body{margin:0;height:100%;display:flex;flex-direction:column;overflow:hidden;font-family:var(--f);font-size:11px;line-height:1.7;color:var(--paper);background:var(--ink)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:4px dashed var(--gold);outline-offset:2px}
+.top{flex:none;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px}
+h1{margin:0;font-size:clamp(14px,4vw,22px);color:var(--gold);text-shadow:3px 3px 0 #000;letter-spacing:2px}
+.hud{display:flex;gap:8px;align-items:center}
+.tag{background:#000;border:3px solid var(--paper);padding:4px 8px;color:var(--gold);font-size:10px}
+.b{font-size:10px;background:var(--lava);color:#fff;border:4px solid #000;padding:10px 12px;box-shadow:inset -4px -4px 0 #b93a0e,inset 4px 4px 0 #ff9a6b,4px 4px 0 #000}
+.b.g{background:var(--gold);color:#1a1420;box-shadow:inset -4px -4px 0 #b88f10,inset 4px 4px 0 #ffe88a,4px 4px 0 #000}
+.b.sm{padding:5px 8px;border-width:3px;box-shadow:3px 3px 0 #000}
+.b:active:not(:disabled){transform:translate(3px,3px)}
+.b:disabled{background:#555;color:#999;box-shadow:4px 4px 0 #000;cursor:default;text-decoration:line-through}
+.scene{flex:1;min-height:0;position:relative;border-top:4px solid var(--paper);border-bottom:4px solid var(--paper);background:#000}
+canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;display:block}
+.panel{flex:none;padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px;background:var(--ink)}
+.tline{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--gem)}
+.tbar{flex:1;height:14px;border:3px solid var(--paper);background:#000}
+.tbar i{display:block;height:100%;width:100%;background:var(--gem)}
+.tbar i.low{background:var(--lava);animation:bl .5s steps(2) infinite}
+@keyframes bl{50%{opacity:.4}}
+.q{margin:0;font-weight:400;font-size:clamp(11px,2.4vw,15px);line-height:1.7;min-height:3.4em}
+.q::after{content:"";display:inline-block;width:.6em;height:1em;background:var(--gold);margin-left:4px;vertical-align:-2px;animation:bl 1s steps(2) infinite}
+.q.done::after{display:none}
+.dig{display:flex;gap:10px;flex-wrap:wrap}
+#ans{flex:1 1 180px;min-width:0;font:inherit;font-size:13px;color:var(--gold);background:#000;border:4px solid var(--paper);padding:10px;box-shadow:inset 4px 4px 0 #2a2433;caret-color:var(--gold)}
+#ans::placeholder{color:#6d6478}
+#ans:disabled{opacity:.6}
+.msg{min-height:3.4em;font-size:10px;color:var(--gold)}
+.end{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92%,440px);background:var(--ink);border:4px solid var(--paper);box-shadow:6px 6px 0 #000;padding:20px;text-align:center}
+.end h2{margin:0 0 14px;font-size:clamp(14px,3.5vw,20px);line-height:1.5;color:var(--gold);font-weight:400}
+.end p{margin:0 0 12px;line-height:1.9}
+.pop{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;font-size:clamp(26px,9vw,76px);line-height:1.1;text-align:center;white-space:nowrap;letter-spacing:3px;text-shadow:5px 5px 0 #000,-3px -3px 0 #000,3px -3px 0 #000,-3px 3px 0 #000}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}15%{transform:translate(-50%,-50%) scale(1.25);opacity:1}30%{transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{transform:translate(-50%,-50%) scale(1.05);opacity:0}}
+.end{z-index:4}
+.hide{display:none!important}
+@media(max-width:520px){.panel{padding:8px 10px 10px}.b{padding:9px 8px}}
+</style>
+</head>
+<body>
+<header class="top">
+ <h1>MINELLION</h1>
+ <div class="hud"><span class="tag" id="qn">R1 Q1/10</span><button class="b sm" id="quit">QUIT</button><button class="b sm" id="snd" aria-pressed="true">SND ON</button></div>
+</header>
+<main class="scene" id="scene">
+ <canvas id="cv" role="img" aria-label="A miner digging down toward a pile of gold"></canvas>
+ <div class="pop hide" id="pop" aria-hidden="true"></div>
+ <section class="end hide" id="end"></section>
+</main>
+<section class="panel">
+ <div class="tline"><span id="meta">TIME</span><div class="tbar"><i id="tfill"></i></div><span id="tnum">30</span></div>
+ <h2 class="q" id="q"></h2>
+ <div class="dig">
+  <input id="ans" type="text" placeholder="type your answer" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Your answer">
+  <button class="b g" id="go">DIG!</button>
+  <button class="b" id="l1">DYNAMITE</button>
+ </div>
+ <div class="msg" id="msg" role="status" aria-live="polite"></div>
+</section>
+<script>
+const BL=[2,4,10,25],TN=["COPPER","GOLD","PLATINUM","DIAMOND"],TC=["#d9824b","#ffcc33","#cfe6f2","#4fe3c1"],GOAL=250;
+// [prompt, common, average, rare, rarest]; "/" separates spellings of one answer
+const Q=[
+["Name a fruit.","Apple,Banana,Orange,Strawberry,Grape,Pear,Lemon,Cherry,Peach,Watermelon,Pineapple,Mango,Blueberry","Kiwi,Plum,Raspberry,Lime,Melon,Pomegranate,Apricot,Grapefruit,Coconut,Blackberry,Papaya,Fig,Cranberry,Nectarine,Tangerine,Clementine,Mandarin","Lychee,Passion Fruit,Guava,Dragon Fruit,Persimmon,Gooseberry,Redcurrant,Blackcurrant,Date,Damson,Quince,Starfruit,Mulberry,Tamarillo","Durian,Jackfruit,Rambutan,Mangosteen,Soursop,Cloudberry,Medlar,Loquat,Salak,Ackee,Pawpaw,Cherimoya,Kumquat,Feijoa"],
+["Name a country in Europe.","France,Germany,Spain,Italy,United Kingdom/UK/Britain/Great Britain,Ireland,Portugal,Netherlands/Holland,Greece,Sweden,Norway,Poland","Switzerland,Austria,Belgium,Denmark,Finland,Hungary,Czech Republic/Czechia,Romania,Croatia,Ukraine,Iceland,Scotland,Wales,England","Serbia,Bulgaria,Slovakia,Slovenia,Lithuania,Latvia,Estonia,Albania,Bosnia and Herzegovina/Bosnia,Belarus,Luxembourg,Moldova,North Macedonia/Macedonia,Cyprus,Malta","Montenegro,Kosovo,Liechtenstein,Monaco,Andorra,San Marino,Vatican City/Vatican"],
+["Name an animal that lives in Africa.","Lion,Elephant,Giraffe,Zebra,Hippo/Hippopotamus,Rhino/Rhinoceros,Cheetah,Gorilla,Leopard,Crocodile","Monkey,Hyena,Buffalo,Antelope,Gazelle,Warthog,Ostrich,Chimpanzee,Baboon,Meerkat,Wildebeest,Flamingo,Lemur","Okapi,Aardvark,Pangolin,Impala,Kudu,Eland,Mongoose,Serval,Caracal,Wild Dog/African Wild Dog,Secretary Bird,Honey Badger,Bongo,Mandrill","Aye-aye,Fossa,Pygmy Hippo/Pygmy Hippopotamus,Aardwolf,Bushbaby/Galago,Shoebill,Dik-dik,Oryx,Springbok,Gerenuk,Bonobo,Hyrax,Sitatunga"],
+["Name a musical instrument.","Guitar,Piano,Drums,Violin,Trumpet,Flute,Saxophone,Clarinet,Cello,Harp","Bass,Trombone,Keyboard,Ukulele,Banjo,Harmonica,Accordion,Tuba,Oboe,Bagpipes,Triangle,Tambourine,Xylophone,Organ,Double Bass,Recorder,Mandolin,Bassoon,French Horn/Horn,Synthesizer","Sitar,Didgeridoo,Cymbals,Glockenspiel,Marimba,Bongos,Castanets,Piccolo,Lute,Harpsichord,Theremin,Kazoo,Maracas,Cowbell,Tabla,Zither,Dulcimer,Panpipes/Pan Flute,Fiddle,Concertina,Cornet,Euphonium,Bugle","Hurdy-gurdy,Ocarina,Oud,Erhu,Shamisen,Koto,Balalaika,Kalimba/Mbira,Sousaphone,Serpent,Glass Armonica,Hang Drum,Charango,Bouzouki,Djembe,Gamelan,Crwth,Cimbalom,Nyckelharpa,Santoor"],
+["Name a sport played with a ball.","Football/Soccer,Basketball,Tennis,Rugby,Cricket,Golf,Baseball,Volleyball,Hockey","Netball,Handball,American Football,Table Tennis/Ping Pong,Squash,Polo,Water Polo,Bowling,Snooker,Pool,Softball,Lacrosse,Rounders,Dodgeball,Croquet","Gaelic Football,Hurling,Shinty,Bowls,Boules/Petanque,Pickleball,Racquetball,Korfball,Jai Alai,Sepak Takraw,Camogie,Bocce,Fives","Tchoukball,Pesapallo,Fistball,Kin-Ball,Bossaball,Pelota,Ulama,Calcio Storico,Underwater Rugby,Harpastum,Cuju"],
+["Name a country in Asia.","China,Japan,India,Thailand,South Korea/Korea,Vietnam,Indonesia,Philippines,Pakistan","Malaysia,Singapore,Russia,Turkey,Iran,Iraq,Saudi Arabia,Israel,Nepal,Bangladesh,Sri Lanka,North Korea,Afghanistan,Taiwan,Cambodia,United Arab Emirates/UAE,Mongolia","Kazakhstan,Uzbekistan,Myanmar/Burma,Laos,Jordan,Lebanon,Syria,Qatar,Kuwait,Oman,Yemen,Maldives,Georgia,Armenia,Azerbaijan","Brunei,Bhutan,Bahrain,Timor-Leste/East Timor,Turkmenistan,Tajikistan,Kyrgyzstan"],
+["Name a famous painter.","Picasso/Pablo Picasso,Van Gogh/Vincent van Gogh,Da Vinci/Leonardo da Vinci/Leonardo,Monet/Claude Monet,Michelangelo,Rembrandt,Dali/Salvador Dali,Warhol/Andy Warhol","Frida Kahlo/Kahlo,Matisse,Renoir,Cezanne,Munch/Edvard Munch,Klimt,Banksy,Raphael,Turner,Constable,Degas,Pollock/Jackson Pollock,Rothko,Hockney,Manet","Vermeer,Goya,Caravaggio,Magritte,Gauguin,Seurat,Hokusai,Mondrian,Kandinsky,Hopper/Edward Hopper,Lowry,Francis Bacon,Titian,Botticelli,Velazquez,Cassatt","Hilma af Klint,Artemisia Gentileschi,Basquiat,Bosch/Hieronymus Bosch,Bruegel/Brueghel,Schiele/Egon Schiele,Mucha,Chagall,Miro,Whistler,Sargent,Canaletto,Frans Hals/Hals,Giotto,Holbein,Georgia O'Keeffe/O'Keeffe"],
+["Name a planet, dwarf planet or moon in our solar system.","Earth,Mars,Jupiter,Saturn,Venus,Mercury,Moon/Luna,Neptune,Uranus","Pluto,Titan,Europa,Io,Phobos,Ganymede,Callisto,Triton,Enceladus","Ceres,Eris,Deimos,Charon,Mimas,Miranda,Oberon,Titania,Makemake,Haumea,Ariel,Umbriel,Rhea,Dione,Iapetus","Sedna,Quaoar,Orcus,Gonggong,Nereid,Proteus,Phoebe,Tethys,Hyperion,Amalthea,Himalia,Elara,Puck"],
+["Name a famous scientist.","Einstein/Albert Einstein,Newton/Isaac Newton,Darwin/Charles Darwin,Galileo,Hawking/Stephen Hawking,Marie Curie/Curie,Tesla/Nikola Tesla,Edison/Thomas Edison","Pasteur,Faraday,Bohr/Niels Bohr,Feynman,Copernicus,Kepler,Fleming/Alexander Fleming,Mendel,Hooke,Carl Sagan/Sagan,Archimedes,Pythagoras,Benjamin Franklin,Turing/Alan Turing","Rosalind Franklin,Maxwell/James Clerk Maxwell,Planck/Max Planck,Heisenberg,Schrodinger,Lavoisier,Boyle,Dalton,Mendeleev,Rutherford,Oppenheimer,Hubble,Lister,Jenner,Linnaeus,Humboldt,Jane Goodall/Goodall,Fermi,Dirac","Lise Meitner,Chien-Shiung Wu,Cecilia Payne,Emmy Noether,Ibn al-Haytham/Alhazen,Hypatia,Caroline Herschel,Mary Anning,Barbara McClintock,Henrietta Leavitt,Chandrasekhar,Satyendra Nath Bose/Bose,Fritz Haber"],
+["Name a famous landmark.","Eiffel Tower,Big Ben,Statue of Liberty,Great Wall of China,Colosseum,Taj Mahal,Pyramids/Great Pyramid/Pyramid of Giza,Stonehenge,Sydney Opera House,Leaning Tower of Pisa/Tower of Pisa","Machu Picchu,Tower Bridge,Golden Gate Bridge,Christ the Redeemer,Acropolis/Parthenon,Burj Khalifa,Buckingham Palace,Empire State Building,Petra,Angkor Wat,Mount Rushmore,Niagara Falls,Louvre,Brandenburg Gate,Sagrada Familia,Mount Everest,Grand Canyon","Chichen Itza,Hagia Sophia,Neuschwanstein,Uluru/Ayers Rock,Table Mountain,Atomium,Space Needle,CN Tower,Forbidden City,Blue Mosque,Sigiriya,Lotus Temple,Moai/Easter Island,Edinburgh Castle,Giant's Causeway,Alcatraz,Hoover Dam,Kremlin,Red Square,Cliffs of Moher,Mont Saint-Michel","Meteora,Pamukkale,Borobudur,Preah Vihear,Tikal,Derinkuyu,Skellig Michael,Great Zimbabwe,Lalibela,Rani ki Vav,Kinkaku-ji/Golden Pavilion,Hallgrimskirkja,Bagan,Wieliczka Salt Mine"],
+["Name a dog breed.","Labrador/Labrador Retriever,Golden Retriever,German Shepherd,Poodle,Bulldog,Pug,Beagle,Chihuahua,Husky/Siberian Husky,Rottweiler","Dachshund,Border Collie,Boxer,Dalmatian,Corgi/Welsh Corgi,Great Dane,Cocker Spaniel,Staffordshire Bull Terrier/Staffie,Shih Tzu,Greyhound,Doberman,Yorkshire Terrier/Yorkie,Pomeranian,Jack Russell","Whippet,Basset Hound,Saluki,Afghan Hound,Bloodhound,Weimaraner,Vizsla,Newfoundland,Samoyed,Akita,Shiba Inu,Bichon Frise,Irish Setter,Scottish Terrier/Scottie,Saint Bernard","Xoloitzcuintli,Pharaoh Hound,Lagotto Romagnolo,Otterhound,Komondor,Puli,Azawakh,Basenji,Kooikerhondje,Sloughi,Norwegian Lundehund,Tibetan Mastiff,Bergamasco"],
+["Name a type of pasta.","Spaghetti,Penne,Lasagne/Lasagna,Macaroni,Fusilli,Tagliatelle,Ravioli,Linguine","Fettuccine,Farfalle,Rigatoni,Tortellini,Conchiglie,Cannelloni,Orzo,Gnocchi,Pappardelle,Vermicelli","Orecchiette,Bucatini,Ziti,Cavatappi,Capellini,Angel Hair,Rotini,Paccheri,Ditalini,Tortelloni,Agnolotti","Trofie,Strozzapreti,Casarecce,Pici,Cavatelli,Mafaldine,Tonnarelli,Busiate,Garganelli,Maltagliati,Fregola"],
+["Name a car brand.","Ford,Toyota,BMW,Mercedes/Mercedes-Benz,Audi,Volkswagen/VW,Honda,Nissan,Tesla,Ferrari,Porsche,Vauxhall","Chevrolet,Peugeot,Renault,Citroen,Fiat,Hyundai,Kia,Mazda,Volvo,Jaguar,Land Rover,Mini,Lamborghini,Jeep,Subaru,Skoda,Seat,Suzuki,Mitsubishi,Lexus,Bentley,Rolls-Royce,Aston Martin","Maserati,Alfa Romeo,Bugatti,McLaren,Lotus,Dodge,Cadillac,Buick,Chrysler,Lincoln,Dacia,Cupra,Infiniti,Acura,Genesis,Opel,MG,Saab,Lancia,Morgan,Pagani","Koenigsegg,Tatra,Spyker,Holden,Daihatsu,Proton,Tata,Mahindra,Wiesmann,Ariel,Caterham,Zagato,Rimac,Polestar,Lada,Trabant,Pontiac,Hummer,Maybach"],
+["Name a US state.","California,Texas,Florida,New York,Alaska,Hawaii,Nevada,Arizona,Colorado,Washington,Illinois","Oregon,Georgia,Ohio,Michigan,Virginia,Pennsylvania,Utah,Massachusetts,Louisiana,Tennessee,Kentucky,Montana,Maine,Alabama,Indiana,Oklahoma,Kansas,Idaho,New Mexico,North Carolina,South Carolina,New Jersey,Wisconsin,Minnesota","Iowa,Missouri,Nebraska,Arkansas,Mississippi,Wyoming,Vermont,New Hampshire","Connecticut,Maryland,South Dakota,North Dakota,West Virginia,Delaware,Rhode Island"],
+["Name a river.","Thames,Nile,Amazon,Mississippi,Danube,Rhine,Seine,Yangtze","Ganges,Tiber,Volga,Mekong,Colorado,Hudson,Severn,Clyde,Tyne,Shannon,Congo,Missouri,Rio Grande,Tigris,Euphrates,Jordan,Murray,Ohio","Don,Dee,Tay,Trent,Mersey,Avon,Wye,Spey,Orinoco,Zambezi,Niger,Loire,Elbe,Oder,Vistula,Dnieper,Indus,Irrawaddy,Yukon,Columbia,Po,Arno,Ebro,Tagus","Limpopo,Murrumbidgee,Lena,Yenisei,Ob,Amur,Paraguay,Magdalena,Mackenzie,Fraser,Saint Lawrence,Brahmaputra,Salween,Kolyma,Neva,Moselle,Garonne,Dordogne"],
+["Name a flower.","Rose,Daisy,Tulip,Sunflower,Lily,Daffodil,Orchid,Poppy,Lavender,Violet","Carnation,Bluebell,Primrose,Buttercup,Dandelion,Marigold,Iris,Lilac,Pansy,Snowdrop,Geranium,Hyacinth,Foxglove,Peony,Chrysanthemum,Jasmine","Hydrangea,Magnolia,Camellia,Azalea,Fuchsia,Gardenia,Lotus,Begonia,Petunia,Hibiscus,Anemone,Dahlia,Freesia,Lupin,Sweet Pea,Cornflower,Forget-me-not,Gerbera,Honeysuckle,Wisteria,Zinnia","Edelweiss,Protea,Bird of Paradise,Delphinium,Snapdragon,Nasturtium,Aster,Cosmos,Amaryllis,Cyclamen,Gentian,Columbine,Ranunculus,Clematis,Passionflower,Corpse Flower"],
+["Name a bird.","Robin,Sparrow,Eagle,Owl,Parrot,Penguin,Duck,Swan,Crow,Pigeon,Chicken,Seagull","Blackbird,Blue Tit,Magpie,Hawk,Falcon,Ostrich,Flamingo,Peacock,Pelican,Kingfisher,Woodpecker,Goose,Turkey,Hummingbird,Swallow,Starling,Wren,Finch,Cuckoo,Heron","Puffin,Albatross,Kiwi,Toucan,Cockatoo,Condor,Vulture,Stork,Crane,Kestrel,Osprey,Nightingale,Skylark,Cormorant,Gannet,Lapwing,Curlew,Oystercatcher,Emu,Cassowary,Macaw,Budgerigar/Budgie","Shoebill,Kakapo,Quetzal,Hoatzin,Secretary Bird,Frigatebird,Bee-eater,Hoopoe,Lyrebird,Kookaburra,Roadrunner,Bowerbird,Tinamou,Takahe,Dodo"],
+["Name a board game.","Monopoly,Chess,Scrabble,Cluedo/Clue,Risk,Draughts/Checkers,Snakes and Ladders,Ludo,Trivial Pursuit,Jenga,Connect 4/Connect Four,Battleship","Backgammon,Operation,Mousetrap,Guess Who,Twister,Pictionary,Catan/Settlers of Catan,Ticket to Ride,Carcassonne,Pandemic,Othello,Go,Mastermind,Sorry,Cranium,Trouble,Boggle,Dominoes,Mahjong,Kerplunk,Buckaroo,Hungry Hippos/Hungry Hungry Hippos","Dixit,Azul,Splendor,Codenames,Terraforming Mars,Wingspan,Scythe,Dominion,Agricola,Betrayal at House on the Hill,Small World,Stratego,Diplomacy,Axis and Allies,Blokus,Rummikub,Sequence,Kingdomino,Takenoko","Gloomhaven,Twilight Imperium,Brass Birmingham/Brass,Puerto Rico,Caylus,Tzolkin,Arkham Horror,Twilight Struggle,Mancala,Hnefatafl,Senet,Shogi,Xiangqi,Pente,Quoridor,Hive"],
+["Name a play by Shakespeare.","Hamlet,Macbeth,Romeo and Juliet,Othello,King Lear,A Midsummer Night's Dream/Midsummer Night's Dream,The Tempest","Julius Caesar,Twelfth Night,Much Ado About Nothing,The Merchant of Venice,As You Like It,Richard III/Richard 3,Henry V/Henry 5,The Taming of the Shrew,Antony and Cleopatra,The Winter's Tale","Coriolanus,Cymbeline,Pericles,Timon of Athens,Titus Andronicus,Troilus and Cressida,Measure for Measure","All's Well That Ends Well,The Comedy of Errors,Love's Labour's Lost,Henry VI,Henry IV,Henry VIII,King John,Richard II,The Two Gentlemen of Verona,The Merry Wives of Windsor,The Two Noble Kinsmen"],
+["Name a mountain.","Everest/Mount Everest,K2,Kilimanjaro,Mont Blanc,Matterhorn,Ben Nevis,Fuji/Mount Fuji,Snowdon","Denali,Elbrus,Annapurna,Kangchenjunga,Aconcagua,Vesuvius,Etna,Olympus,Table Mountain,Eiger,Kosciuszko,Mount St Helens,Ararat,Rainier,Whitney","Lhotse,Makalu,Cho Oyu,Dhaulagiri,Nanga Parbat,Manaslu,Broad Peak,Ben Lomond,Ben Macdui,Helvellyn,Skiddaw,Cairn Gorm/Cairngorm,Lochnagar,Scafell Pike,Jungfrau,Monte Rosa,Teide,Toubkal,Cotopaxi,Chimborazo,Mauna Kea,Mauna Loa,Mount Cook/Aoraki,Mount Kenya","Gasherbrum,Kamet,Ama Dablam,Nuptse,Pumori,Mount Vinson/Vinson,Puncak Jaya,Carstensz Pyramid,Mount Erebus/Erebus,Ojos del Salado,Huascaran,Illimani,Mount Meru,Ras Dashen,Mount Elgon,Mulhacen,Aneto,Gran Sasso"],
+["Name a currency.","Dollar/US Dollar,Pound/Pound Sterling,Euro,Yen,Rupee,Franc,Peso,Yuan","Rouble/Ruble,Krona,Rand,Lira,Dinar,Won,Dirham,Real,Zloty,Shekel,Krone,Baht,Forint,Rupiah,Ringgit","Rial,Riyal,Dong,Kyat,Taka,Kwacha,Naira,Cedi,Shilling,Birr,Lek,Lev,Leu,Kuna,Hryvnia,Tenge,Som,Manat,Dram,Lari","Metical,Ouguiya,Pa'anga,Vatu,Kina,Tala,Loti,Lilangeni,Boliviano,Guarani,Balboa,Quetzal,Lempira,Gourde,Ngultrum,Afghani,Denar,Dalasi,Leone,Nakfa"],
+["Name a vegetable.","Carrot,Potato,Onion,Tomato,Broccoli,Cabbage,Peas/Pea,Lettuce,Cucumber,Cauliflower,Spinach,Sweetcorn/Corn","Leek,Celery,Parsnip,Turnip,Beetroot/Beet,Courgette/Zucchini,Aubergine/Eggplant,Pepper,Mushroom,Asparagus,Radish,Garlic,Kale,Brussels Sprouts/Sprouts,Pumpkin,Squash,Swede,Green Bean/Runner Bean","Fennel,Artichoke,Okra,Kohlrabi,Rocket/Arugula,Watercress,Chard,Pak Choi/Bok Choy,Sweet Potato,Yam,Cassava,Celeriac,Shallot,Spring Onion/Scallion,Radicchio,Endive,Mangetout,Edamame,Bean Sprouts,Horseradish,Rhubarb","Salsify,Romanesco,Daikon,Jicama,Taro,Samphire,Cardoon,Fiddlehead,Oca,Mizuna,Tatsoi,Chayote,Lotus Root,Burdock,Skirret,Jerusalem Artichoke/Sunchoke"],
+["Name a tree.","Oak,Pine,Birch,Willow,Maple,Apple,Palm,Elm,Ash,Beech","Cedar,Sycamore,Redwood,Yew,Holly,Hawthorn,Rowan,Poplar,Chestnut,Walnut,Cherry,Spruce,Fir,Larch,Hazel,Lime,Alder,Eucalyptus/Gum,Baobab,Olive,Cypress,Juniper","Hornbeam,Elder,Aspen,Plane,Mulberry,Sequoia,Banyan,Acacia,Teak,Mahogany,Ebony,Cork Oak,Monkey Puzzle,Ginkgo,Magnolia,Hickory,Pecan,Sweet Chestnut,Whitebeam,Blackthorn,Mangrove","Dragon Tree,Joshua Tree,Kapok,Ceiba,Rimu,Kauri,Wollemi Pine,Bristlecone Pine,Jacaranda,Tulip Tree,Handkerchief Tree,Sassafras,Katsura,Pawpaw,Osage Orange,Strangler Fig,Neem,Tamarind,Argan"],
+["Name a dinosaur.","T Rex/Tyrannosaurus Rex/Tyrannosaurus,Triceratops,Velociraptor,Stegosaurus,Brachiosaurus,Diplodocus,Ankylosaurus,Spinosaurus","Allosaurus,Iguanodon,Parasaurolophus,Apatosaurus,Brontosaurus,Megalosaurus,Gallimimus,Compsognathus,Pachycephalosaurus,Giganotosaurus,Dilophosaurus,Carnotaurus,Archaeopteryx,Utahraptor,Deinonychus,Baryonyx","Protoceratops,Oviraptor,Therizinosaurus,Maiasaura,Edmontosaurus,Argentinosaurus,Plateosaurus,Coelophysis,Troodon,Herrerasaurus,Camarasaurus,Styracosaurus,Corythosaurus,Hadrosaurus,Albertosaurus,Mamenchisaurus,Microraptor","Dracorex,Amargasaurus,Nigersaurus,Yutyrannus,Sinosauropteryx,Kosmoceratops,Pachyrhinosaurus,Concavenator,Masiakasaurus,Suchomimus,Irritator,Minmi,Leaellynasaura,Zuniceratops,Borealopelta,Eoraptor,Mapusaurus"],
+["Name a type of cheese.","Cheddar,Mozzarella,Brie,Parmesan,Feta,Gouda,Camembert,Edam,Stilton,Halloumi","Swiss/Emmental,Gruyere,Blue Cheese,Cottage Cheese,Cream Cheese,Mascarpone,Ricotta,Red Leicester,Wensleydale,Monterey Jack,Provolone,Gorgonzola,Roquefort,Pecorino,Manchego,Jarlsberg,Cheshire,Double Gloucester,Havarti,Paneer","Raclette,Fontina,Taleggio,Comte,Asiago,Munster,Limburger,Port Salut,Caerphilly,Lancashire,Stinking Bishop,Sage Derby,Derby,Reblochon,Boursin,Burrata,Queso Fresco,Cotija,Colby,Pepper Jack,Vacherin","Epoisses,Casu Marzu,Gjetost,Appenzeller,Beaufort,Mimolette,Livarot,Cabrales,Tete de Moine,Oaxaca,Pule,Stracciatella"],
+["Name a famous composer.","Mozart,Beethoven,Bach,Chopin,Tchaikovsky,Vivaldi,Handel","Haydn,Schubert,Brahms,Liszt,Wagner,Debussy,Verdi,Elgar,Holst,Strauss,Mahler,Rachmaninoff,Grieg,Dvorak,Puccini,Mendelssohn,Schumann,Stravinsky,Satie,Ravel","Prokofiev,Shostakovich,Sibelius,Bartok,Britten,Vaughan Williams,Purcell,Monteverdi,Rossini,Bizet,Offenbach,Gershwin,Copland,Bernstein,Berlioz,Faure,Saint-Saens,Borodin,Mussorgsky,Rimsky-Korsakov,Smetana,Janacek,Bruckner,Telemann","Hildegard of Bingen,Palestrina,Gesualdo,Tallis,Byrd,Dowland,Scarlatti,Couperin,Rameau,Lully,Ligeti,Messiaen,Penderecki,Arvo Part,Philip Glass,Steve Reich,John Cage,Ives,Takemitsu,Villa-Lobos"],
+["Name a desert.","Sahara,Gobi,Kalahari,Mojave,Atacama,Arabian,Namib","Sonoran,Thar,Great Victoria,Gibson,Simpson,Negev,Sinai,Syrian,Patagonian,Chihuahuan,Great Basin,Karakum,Taklamakan,Great Sandy,Painted Desert,Antarctica,Arctic","Kyzylkum,Danakil,Nubian,Libyan,Dasht-e Kavir/Kavir,Dasht-e Lut/Lut,Sechura,Tanami,Strzelecki,Sturt Stony,Ordos,Badain Jaran,Rub al Khali/Empty Quarter,Nefud,Judean,Colorado Desert,Black Rock,Bardenas Reales,Tabernas","Tenere,Karoo,Ogaden,Tengger,Cholistan,Thal,Kharan,Dasht-e Margo"],
+["Name a Greek god or goddess.","Zeus,Poseidon,Hades,Athena,Apollo,Aphrodite,Ares,Hera","Artemis,Hermes,Dionysus,Hephaestus,Demeter,Persephone,Hestia,Eros,Pan,Hercules/Heracles,Nike,Helios","Cronus/Kronos,Rhea,Gaia/Gaea,Uranus,Hecate,Nemesis,Morpheus,Hypnos,Thanatos,Iris,Selene,Eos,Tyche,Hebe,Asclepius,Triton,Nyx,Eris,Themis,Prometheus","Chaos,Erebus,Tartarus,Oceanus,Tethys,Hyperion,Atlas,Epimetheus,Mnemosyne,Phoebe,Metis,Coeus,Crius,Iapetus,Aether,Hemera,Pontus,Thalassa,Harmonia,Hygieia,Hymen,Momus,Aristaeus,Pallas"],
+["Name a gemstone or mineral.","Diamond,Ruby,Emerald,Sapphire,Gold,Silver,Quartz,Amethyst,Opal,Pearl,Topaz","Garnet,Turquoise,Jade,Amber,Onyx,Obsidian,Coal,Copper,Iron,Jasper,Agate,Peridot,Aquamarine,Moonstone,Lapis Lazuli/Lapis,Citrine,Tourmaline,Zircon,Malachite,Flint,Salt,Gypsum","Beryl,Spinel,Tanzanite,Alexandrite,Morganite,Bloodstone,Sunstone,Tiger's Eye,Rose Quartz,Carnelian,Chalcedony,Kyanite,Fluorite,Pyrite,Calcite,Talc,Mica,Feldspar,Sodalite,Rhodonite,Hematite,Magnetite,Galena,Cinnabar,Borax,Halite","Painite,Jeremejevite,Taaffeite,Grandidierite,Benitoite,Red Beryl,Musgravite,Poudretteite,Tsavorite,Demantoid,Larimar,Charoite,Sugilite,Ammolite,Azurite,Rhodochrosite,Wulfenite,Stibnite,Orpiment,Realgar"],
+["Name a chemical element.","Hydrogen,Oxygen,Carbon,Nitrogen,Helium,Gold,Silver,Iron,Copper,Sodium,Calcium","Zinc,Lead,Tin,Aluminium/Aluminum,Mercury,Uranium,Platinum,Neon,Chlorine,Silicon,Sulphur/Sulfur,Potassium,Magnesium,Lithium,Nickel,Phosphorus,Titanium,Iodine,Argon,Fluorine,Radium,Plutonium,Cobalt,Chromium,Tungsten,Boron","Beryllium,Manganese,Arsenic,Selenium,Bromine,Krypton,Xenon,Cadmium,Antimony,Barium,Bismuth,Gallium,Germanium,Strontium,Zirconium,Rubidium,Caesium/Cesium,Palladium,Rhodium,Iridium,Osmium,Thorium,Radon,Polonium,Vanadium,Molybdenum","Technetium,Promethium,Hafnium,Rhenium,Ytterbium,Lutetium,Thulium,Holmium,Erbium,Dysprosium,Terbium,Europium,Samarium,Neodymium,Praseodymium,Cerium,Lanthanum,Scandium,Yttrium,Niobium,Tantalum,Francium,Astatine,Protactinium,Californium,Einsteinium,Oganesson,Livermorium,Flerovium,Copernicium,Darmstadtium"],
+["Name a country in Africa.","Egypt,South Africa,Nigeria,Kenya,Morocco,Ethiopia,Ghana,Algeria","Tanzania,Uganda,Tunisia,Libya,Sudan,Senegal,Zimbabwe,Zambia,Angola,Madagascar,Namibia,Botswana,Cameroon,Mali,Somalia,Rwanda,Mozambique,Ivory Coast/Cote d'Ivoire,Congo/DR Congo/Democratic Republic of the Congo","Chad,Niger,Mauritania,Malawi,Sierra Leone,Liberia,Gabon,Benin,Togo,Burkina Faso,Burundi,South Sudan,Eritrea,Djibouti,Lesotho,Eswatini/Swaziland,Gambia,Guinea,Mauritius,Seychelles","Cape Verde/Cabo Verde,Comoros,Sao Tome and Principe,Equatorial Guinea,Guinea-Bissau,Central African Republic"],
+["Name a country in South America.","Brazil,Argentina,Chile,Peru,Colombia","Venezuela,Ecuador,Bolivia,Uruguay","Paraguay,Guyana","Suriname,French Guiana"],
+["Name a capital city.","London,Paris,Berlin,Rome,Madrid,Tokyo,Washington/Washington DC,Moscow,Beijing,Canberra,Ottawa,Dublin,Cairo,Athens,Lisbon,Edinburgh","Vienna,Brussels,Amsterdam,Stockholm,Oslo,Copenhagen,Helsinki,Warsaw,Prague,Budapest,Bern/Berne,New Delhi/Delhi,Seoul,Bangkok,Buenos Aires,Lima,Santiago,Bogota,Nairobi,Wellington,Cardiff,Belfast,Havana,Mexico City,Jakarta,Manila,Hanoi,Kabul,Baghdad,Tehran,Ankara","Reykjavik,Zagreb,Belgrade,Sofia,Bucharest,Bratislava,Ljubljana,Vilnius,Riga,Tallinn,Kyiv/Kiev,Minsk,Valletta,Nicosia,Tirana,Sarajevo,Skopje,Abuja,Accra,Addis Ababa,Dakar,Lusaka,Harare,Kampala,Rabat,Tunis,Algiers,Riyadh,Doha,Muscat,Amman,Beirut,Damascus,Kathmandu,Dhaka,Islamabad,Colombo,Kuala Lumpur,Montevideo,Quito,La Paz,Caracas,Panama City","Ulaanbaatar,Thimphu,Vientiane,Naypyidaw/Nay Pyi Taw,Phnom Penh,Bandar Seri Begawan,Dili,Port Moresby,Suva,Apia,Honiara,Port Vila,Tbilisi,Yerevan,Baku,Ashgabat,Dushanbe,Bishkek,Tashkent,Astana,Chisinau,Podgorica,Pristina,Vaduz,Ouagadougou,Bamako,Niamey,Ndjamena,Windhoek,Gaborone,Maseru,Antananarivo,Moroni,Port Louis,Asmara,Mogadishu,Khartoum,Kigali,Bujumbura,Dodoma,Lilongwe,Maputo"],
+["Name a Roman emperor.","Augustus,Nero,Caligula,Claudius,Constantine,Hadrian,Trajan,Marcus Aurelius","Tiberius,Vespasian,Titus,Domitian,Commodus,Diocletian,Septimius Severus,Caracalla,Nerva,Antoninus Pius,Justinian,Theodosius","Galba,Otho,Vitellius,Aurelian,Valerian,Gallienus,Decius,Maximian,Licinius,Julian,Honorius,Romulus Augustulus,Elagabalus,Pertinax,Macrinus","Probus,Carus,Numerian,Carinus,Tacitus,Florian,Jovian,Valens,Gratian,Arcadius,Majorian,Avitus,Petronius Maximus,Didius Julianus,Pupienus,Balbinus,Gordian,Philip the Arab"],
+["Name a US president.","Washington/George Washington,Lincoln/Abraham Lincoln,Obama,Trump,Biden,Kennedy/JFK,Roosevelt,Jefferson,Reagan,Bush,Clinton,Nixon","Carter,Eisenhower,Truman,Ford,Johnson,Wilson,Adams,Madison,Monroe,Jackson,Grant,Hoover,Taft,Coolidge,Harding","Polk,Tyler,Hayes,Garfield,Arthur,Cleveland,McKinley,Taylor","Fillmore/Millard Fillmore,Pierce/Franklin Pierce,Buchanan/James Buchanan,Van Buren/Martin Van Buren,Harrison/Benjamin Harrison/William Henry Harrison"],
+["Name a herb or spice.","Pepper,Basil,Mint,Parsley,Cinnamon,Ginger,Thyme,Rosemary,Oregano,Paprika,Chilli/Chili","Cumin,Turmeric,Nutmeg,Coriander/Cilantro,Dill,Sage,Cloves,Cardamom,Saffron,Vanilla,Chives,Bay Leaf/Bay,Fennel,Mustard,Tarragon,Cayenne,Allspice,Star Anise,Lemongrass","Fenugreek,Sumac,Marjoram,Lovage,Caraway,Juniper,Mace,Aniseed/Anise,Sorrel,Chervil,Savory,Zaatar,Asafoetida,Galangal,Annatto,Tamarind,Szechuan Pepper,Curry Leaf,Borage","Grains of Paradise,Long Pepper,Cubeb,Mahleb,Epazote,Ajwain,Amchur,Nigella,Kaffir Lime Leaf,Zedoary,Shiso,Hyssop,Lemon Verbena,Angelica,Sweet Cicely,Aleppo Pepper"],
+["Name a sea creature.","Shark,Whale,Dolphin,Octopus,Jellyfish,Crab,Starfish,Seahorse,Lobster,Turtle,Seal,Squid","Stingray,Clownfish,Walrus,Manatee,Orca,Narwhal,Sea Lion,Swordfish,Eel,Pufferfish,Barracuda,Anglerfish,Sea Urchin,Shrimp,Oyster,Clam,Mussel,Coral,Sea Otter,Manta Ray,Tuna,Cod,Salmon","Hammerhead,Dugong,Nautilus,Cuttlefish,Sea Cucumber,Sea Anemone,Barnacle,Limpet,Whelk,Conch,Scallop,Krill,Plankton,Lionfish,Moray Eel,Sunfish,Oarfish,Marlin,Grouper,Wrasse,Pipefish","Vampire Squid,Giant Isopod,Blobfish,Mantis Shrimp,Sea Pig,Goblin Shark,Fangtooth,Viperfish,Gulper Eel,Dumbo Octopus,Coelacanth,Hagfish,Lamprey,Sea Angel,Sea Butterfly,Pistol Shrimp,Tube Worm,Yeti Crab,Siphonophore,Barreleye"],
+["Name an insect.","Ant,Bee,Butterfly,Fly,Mosquito,Ladybird/Ladybug,Wasp,Beetle,Caterpillar,Grasshopper,Moth,Dragonfly,Cricket","Cockroach,Flea,Louse,Termite,Praying Mantis/Mantis,Stick Insect,Firefly,Earwig,Aphid,Hornet,Bumblebee,Locust,Cicada,Dung Beetle,Stag Beetle,Mayfly,Lacewing,Silverfish,Weevil,Midge,Horsefly","Cranefly/Daddy Longlegs,Damselfly,Thrips,Whitefly,Leafhopper,Shield Bug,Water Boatman,Pond Skater,Snakefly,Scorpionfly,Katydid,Leaf Insect,Atlas Moth,Hawk Moth,Bombardier Beetle,Tiger Beetle,Rhinoceros Beetle,Goliath Beetle,Weaver Ant,Army Ant,Bullet Ant","Antlion,Dobsonfly,Stonefly,Caddisfly,Webspinner,Bristletail,Springtail,Treehopper,Assassin Bug,Backswimmer,Mantidfly,Orchid Mantis,Glasswing Butterfly,Morpho"],
+["Name a famous author.","Shakespeare,Dickens,Austen,J K Rowling/JK Rowling/Rowling,Roald Dahl/Dahl,Tolkien,Orwell,Hemingway,Agatha Christie/Christie,Stephen King/King,Mark Twain/Twain","Tolstoy,Dostoevsky,Hardy,Bronte,Woolf,Fitzgerald,Steinbeck,Wilde,Kipling,Conan Doyle/Arthur Conan Doyle,Lewis Carroll/Carroll,C S Lewis,Enid Blyton/Blyton,Huxley,Joyce,Poe/Edgar Allan Poe,Victor Hugo/Hugo,Dumas,Homer,Dante,Chaucer,Milton,Robert Burns/Burns,Shelley,Byron,Keats","Faulkner,Salinger,Kafka,Camus,Sartre,Proust,Flaubert,Balzac,Zola,Chekhov,Gogol,Pushkin,Nabokov,Garcia Marquez,Borges,Cervantes,Achebe,Atwood,Morrison,Rushdie,Ishiguro,McEwan,Pratchett,Gaiman,Le Guin,Asimov,Bradbury,Vonnegut,Heller","Murakami,Calvino,Umberto Eco/Eco,Saramago,Pessoa,Mishima,Tagore,Naipaul,Coetzee,Gordimer,Mahfouz,Neruda,Vargas Llosa/Llosa,Allende,Bulgakov,Pasternak,Solzhenitsyn,Akhmatova,Szymborska,Kundera,Lispector,Ferrante,Knausgaard,Sebald"],
+["Name a language.","English,Spanish,French,German,Italian,Chinese/Mandarin,Japanese,Russian,Arabic,Portuguese,Hindi","Korean,Dutch,Greek,Latin,Turkish,Polish,Swedish,Norwegian,Danish,Finnish,Hebrew,Urdu,Bengali,Punjabi,Swahili,Thai,Vietnamese,Welsh,Irish,Scots Gaelic/Gaelic,Cantonese","Hungarian,Czech,Slovak,Romanian,Bulgarian,Serbian,Croatian,Ukrainian,Persian/Farsi,Tamil,Telugu,Marathi,Gujarati,Malay,Indonesian,Tagalog/Filipino,Zulu,Xhosa,Afrikaans,Amharic,Yoruba,Hausa,Igbo,Icelandic,Estonian,Latvian,Lithuanian,Albanian,Basque,Catalan,Maltese,Cornish,Breton","Esperanto,Quechua,Guarani,Navajo,Maori,Hawaiian,Samoan,Tongan,Mongolian,Tibetan,Burmese,Khmer,Lao,Sanskrit,Aramaic,Sumerian,Coptic,Ainu,Inuktitut,Faroese,Sami,Romani,Yiddish,Ladino,Manx,Tok Pisin"],
+["Name a town or city in Scotland.","Edinburgh,Glasgow,Aberdeen,Dundee,Inverness,Stirling,Perth,Paisley","Fort William,Oban,St Andrews,Elgin,Dumfries,Ayr,Kilmarnock,Falkirk,Livingston,Dunfermline,Kirkcaldy,Cumbernauld,Peterhead,Fraserburgh,Montrose,Arbroath,Forfar,Stonehaven,Ullapool,Thurso,Wick,Portree","Banchory,Ballater,Huntly,Keith,Nairn,Forres,Dingwall,Tain,Dornoch,Golspie,Brora,Aviemore,Pitlochry,Crieff,Callander,Dunblane,Alloa,Hawick,Galashiels,Melrose,Peebles,Selkirk,Jedburgh,Kelso,Stranraer,Girvan,Troon,Largs,Greenock,Helensburgh,Dumbarton,Motherwell,Hamilton,Lanark","Kinlochleven,Mallaig,Lochinver,Durness,Applecross,Plockton,Cullen,Portsoy,Banff,Macduff,Turriff,Inverurie,Ellon,Laurencekirk,Johnshaven,Gourdon,Crovie,Pennan,Tarbert,Campbeltown,Inveraray,Lochgilphead"],
+["Name a sea or ocean.","Pacific/Pacific Ocean,Atlantic/Atlantic Ocean,Indian/Indian Ocean,Arctic/Arctic Ocean,Mediterranean/Mediterranean Sea,Caribbean/Caribbean Sea,North Sea/North,Red Sea/Red,Southern/Southern Ocean","Baltic/Baltic Sea,Black Sea/Black,Dead Sea/Dead,Arabian Sea,South China Sea,Irish Sea,Coral Sea,Tasman Sea,Caspian Sea/Caspian,Adriatic/Adriatic Sea,Aegean/Aegean Sea","Sargasso Sea,Bering Sea,Barents Sea,Labrador Sea,Norwegian Sea,Celtic Sea,Yellow Sea,Sea of Japan,Philippine Sea,Timor Sea,Arafura Sea,Ionian Sea,Tyrrhenian Sea,Ligurian Sea,Sea of Marmara,Sea of Azov,White Sea,Kara Sea,Beaufort Sea,Weddell Sea,Ross Sea","Laptev Sea,East Siberian Sea,Chukchi Sea,Sea of Okhotsk,Banda Sea,Celebes Sea,Sulu Sea,Java Sea,Flores Sea,Molucca Sea,Bismarck Sea,Solomon Sea,Amundsen Sea,Bellingshausen Sea,Greenland Sea,Alboran Sea,Balearic Sea,Sea of Crete,Sea of Galilee"],
+["Name a type of bread.","Baguette,Sourdough,Ciabatta,Naan,Pitta/Pita,Rye,Brioche,White,Wholemeal/Brown/Wholewheat,Bagel,Focaccia","Soda Bread,Cornbread,Flatbread,Chapati,Roti,Tortilla,Bap,Cob,Bloomer,Cottage Loaf,Crumpet,Muffin,Pretzel,Pumpernickel,Panini,Challah,Matzo,Lavash,Paratha,Banana Bread,Garlic Bread,Farl,Bannock,Stottie","Injera,Arepa,Fougasse,Grissini,Taralli,Lefse,Pide,Simit,Barbari,Sangak,Bhatura,Puri,Kulcha,Appam,Dosa,Bao,Mantou,Stollen,Panettone,Pandoro,Kaiser Roll","Pandesal/Pan de Sal,Broa,Pogaca,Lagana,Tsoureki,Pane Carasau,Schiacciata,Michetta,Kolach,Babka,Kifli,Manaeesh,Khubz,Markook,Gozleme"],
+["Name a type of coffee.","Latte,Cappuccino,Espresso,Americano,Mocha,Flat White,Macchiato","Cortado,Ristretto,Affogato,Irish Coffee,Frappe,Frappuccino,Cold Brew,Iced Coffee,Doppio,Lungo,Long Black,Piccolo,Turkish Coffee,Decaf,Filter Coffee,Black Coffee,White Coffee,Instant","Cafe au Lait,Cafe Bombon,Cafe Cubano,Galao,Cafe con Leche,Red Eye,Breve,Cafe Noisette,Dalgona,Nitro Cold Brew,Marocchino,Bicerin,Eiskaffee","Vietnamese Coffee/Ca Phe Sua Da,Yuanyang,Einspanner,Mazagran,Cafe de Olla,Cafe Crema,Cafe Touba,Cafecito,Greek Coffee,Arabic Coffee/Qahwa"],
+["Name a style of dance.","Ballet,Salsa,Tango,Waltz,Hip Hop,Breakdance/Breakdancing,Jive,Tap,Disco,Line Dancing,Ballroom,Cha Cha/Cha Cha Cha","Foxtrot,Quickstep,Samba,Rumba,Flamenco,Polka,Jazz,Contemporary,Swing,Lindy Hop,Charleston,Twist,Conga,Mambo,Bachata,Merengue,Belly Dance,Morris Dancing/Morris,Ceilidh,Highland,Irish Dancing,Folk,Square Dance,Bollywood,Pasodoble","Bossa Nova,Zumba,Krumping,Voguing,Popping,Locking,Moonwalk,Jitterbug,Boogie Woogie,Cakewalk,Sword Dance,Hula,Haka,Capoeira,Kathak,Bharatanatyam,Bhangra,Garba,Kabuki,Butoh,Tarantella,Mazurka,Minuet,Gavotte,Bolero,Fandango,Hornpipe,Strathspey,Reel","Kizomba,Zouk,Lambada,Forro,Cumbia,Vallenato,Candombe,Pantsula,Gumboot,Kuduro,Azonto,Dabke,Hopak,Kolo,Sirtaki,Zeibekiko,Tinikling,Legong,Odissi,Kuchipudi,Mohiniyattam,Manipuri"],
+["Name a martial art.","Karate,Judo,Taekwondo,Kung Fu,Boxing,Wrestling,Jiu-Jitsu/Jujitsu/Brazilian Jiu-Jitsu,Aikido","Kickboxing,Muay Thai,Krav Maga,Sumo,Kendo,Tai Chi,Wing Chun,Hapkido,Savate,Sambo,Fencing,Mixed Martial Arts/MMA,Ninjutsu,Jeet Kune Do","Kyudo,Iaido,Kenjutsu,Naginata,Escrima/Eskrima/Kali/Arnis,Silat/Pencak Silat,Kalaripayattu,Wushu,Sanda,Baguazhang,Xingyiquan,Taekkyon,Glima,Lethwei,Bokator,Systema,Vovinam,Hung Gar,Shotokan,Kyokushin","Bartitsu,Pankration,Canne de Combat,Bataireacht,Dambe,Laamb,Tahtib,Gatka,Thang Ta,Okichitaw,Kenpo,Hojojutsu,Bojutsu,Jojutsu,Sojutsu,Battodo,Kobudo"],
+["Name a card game.","Poker,Blackjack/Pontoon,Snap,Rummy,Bridge,Solitaire/Patience,Go Fish,Uno,Old Maid,Hearts,Whist,Cribbage","Gin Rummy,Texas Hold'em/Texas Holdem,Canasta,Spades,Euchre,Pinochle,Baccarat,Crazy Eights,Happy Families,Beggar My Neighbour,War,Spit,Speed,Brag,Omaha,Faro,Piquet,Skat","Klondike,Spider Solitaire,FreeCell,Clock Patience,Scopa,Briscola,Tarot/Tarocchi,Belote,Jass,Doppelkopf,Schafkopf,Sheepshead,Nap/Napoleon,Oh Hell,Spoons,Slapjack,Cheat,Red Dog,Pai Gow","Durak,Preferans,Tichu,Cuarenta,Truco,Tressette,Sueca,Hanafuda,Karuta,Bezique,Ecarte,Cassino/Casino,Loo,Ombre,Quadrille"],
+["Name an Olympic sport.","Swimming,Athletics/Track and Field,Gymnastics,Boxing,Cycling,Rowing,Tennis,Football,Basketball,Diving,Judo,Archery,Fencing,Sailing","Weightlifting,Wrestling,Hockey,Volleyball,Beach Volleyball,Handball,Rugby Sevens/Rugby,Table Tennis,Badminton,Golf,Skiing,Snowboarding,Ice Hockey,Curling,Figure Skating,Speed Skating,Bobsleigh/Bobsled,Luge,Skeleton,Equestrian,Triathlon,Modern Pentathlon,Shooting,Canoeing,Kayaking,Taekwondo","Biathlon,Ski Jumping,Cross-Country Skiing,Nordic Combined,Alpine Skiing,Freestyle Skiing,Water Polo,Artistic Swimming/Synchronised Swimming,Trampolining,Rhythmic Gymnastics,Skateboarding,Surfing,Sport Climbing/Climbing,BMX,Mountain Biking,Breaking,Decathlon,Heptathlon,Marathon,Pole Vault,Javelin,Discus,Shot Put,Hammer Throw,Steeplechase","Race Walking,Short Track,Tug of War,Polo,Cricket,Lacrosse,Flag Football,Squash,Baseball,Softball,Pelota,Jeu de Paume,Croquet,Rackets,Roque,Motorboating"],
+["Name an item of clothing.","Shirt,Trousers/Pants,Jeans,Dress,Skirt,Jumper/Sweater,Jacket,Coat,Socks,Shoes,Hat,T-shirt/T Shirt,Shorts,Scarf,Gloves","Hoodie,Cardigan,Blouse,Tie,Belt,Waistcoat,Suit,Pyjamas,Dressing Gown,Underwear,Boxers,Bra,Tights,Leggings,Tracksuit,Raincoat,Anorak,Parka,Blazer,Overalls,Dungarees,Kilt,Sari,Kimono,Poncho,Cape,Cloak,Boots","Cravat,Bow Tie,Cummerbund,Jerkin,Doublet,Tunic,Toga,Sarong,Kaftan,Salwar Kameez,Cheongsam,Dirndl,Lederhosen,Shawl,Stole,Bolero,Gilet,Fleece,Cagoule,Bodysuit,Leotard,Corset,Petticoat,Camisole,Jodhpurs,Plus Fours,Breeches,Culottes,Pinafore,Smock","Sporran,Dhoti,Lungi,Hanbok,Ao Dai,Kente,Dashiki,Boubou,Obi,Hakama,Yukata,Burka,Niqab,Hijab,Jilbab,Thobe,Keffiyeh,Fez,Balaclava,Snood,Muff,Spats,Gaiters"],
+["Name a city in the UK.","London,Manchester,Birmingham,Liverpool,Leeds,Glasgow,Edinburgh,Bristol,Sheffield,Newcastle,Cardiff,Belfast","Nottingham,Leicester,Oxford,Cambridge,Bath,York,Norwich,Exeter,Plymouth,Southampton,Portsmouth,Brighton,Coventry,Aberdeen,Dundee,Swansea,Hull,Derby,Stoke-on-Trent","Lincoln,Durham,Canterbury,Winchester,Salisbury,Chester,Worcester,Lichfield,Gloucester,Hereford,Wells,Ely,Truro,Carlisle,Lancaster,Preston,Sunderland,Wolverhampton,Bradford,Inverness,Stirling,Perth,Newport,Bangor,Armagh,Londonderry/Derry,Lisburn","Ripon,Chichester,Peterborough,Wakefield,Salford,Southend-on-Sea,Milton Keynes,Doncaster,St Albans,Dunfermline,Colchester,Chelmsford,Newry,Wrexham,St Davids,St Asaph"]
+];
+const $=id=>document.getElementById(id);
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const shuf=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
+let snd=true,ac;
+function beep(seq){if(!snd)return;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();let t=ac.currentTime;for(let k=0;k<seq.length;k+=2){const o=ac.createOscillator(),g=ac.createGain();o.type="square";o.frequency.value=seq[k];g.gain.value=.05;o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+seq[k+1]);t+=seq[k+1]}}catch(e){}}
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/['’.]/g,"").replace(/\bsaint\b/g,"st").replace(/\b(the|isle of|island of|town of|village of)\b/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+function lev(a,b){const m=[...Array(b.length+1).keys()];for(let x=1;x<=a.length;x++){let p=m[0];m[0]=x;for(let y=1;y<=b.length;y++){const t=m[y];m[y]=Math.min(m[y]+1,m[y-1]+1,p+(a[x-1]===b[y-1]?0:1));p=t}}return m[b.length]}
+
+/* ---------- world drawing ---------- */
+const cv=$("cv"),cx=cv.getContext("2d");
+let W=0,H=0,S=16,depth=0,mr=-1,mrT=-1,camY=0,parts=[],shake=0,T=0,digging=false;
+const hs=(a,b,c)=>{let h=Math.imul(a+101,374761393)^Math.imul(b+977,668265263)^Math.imul(c+13,1274126177);h=Math.imul(h^(h>>>13),1103515245);return(h^(h>>>16))>>>0};
+function size(){const r=$("scene").getBoundingClientRect();W=cv.width=Math.max(200,Math.round(r.width));H=cv.height=Math.max(120,Math.round(r.height));S=Math.max(14,Math.floor(W/15));camY=(mr+1)*S-H*.45}
+const PAL=[["#7a4a2b","#643c22","#8d5a35"],["#6d4326","#583520","#80502f"],["#6f6f7b","#5a5a66","#85858f"],["#656571","#50505c","#7a7a86"],["#5f5f6c","#4a4a56","#74747f"],["#6a5a55","#544641","#7f6d66"],["#4a3d5c","#382d48","#5c4d72"],["#3f3350","#2f2640","#52446a"],["#5c3a3a","#472b2b","#704646"],["#6a2f1f","#522318","#83402b"]];
+const pal=r=>r===0?["#6a4125","#573419","#7e4f2e"]:PAL[Math.min(9,Math.floor(r/25))];
+const oreC=(r,h)=>{const b=Math.floor(r/25);return b<3?"#15131a":b<5?(h%3?"#e0a878":"#15131a"):b<7?(h%3?"#ffcc33":"#e0a878"):(h%3?"#4fe3c1":"#ffcc33")};
+const GP=["#ffcc33","#e8a400","#fff0a0"];
+function tile(x,y,r,k,P){
+ const p=P||pal(r),xs=[0,1,2,3,4].map(i=>Math.round(x+i*S/4)),ys=[0,1,2,3,4].map(i=>Math.round(y+i*S/4));
+ const hv=hs(r,k,1),ore=!P&&r>=10&&hv%100<16?oreC(r,hv):null;
+ for(let a=0;a<4;a++)for(let b=0;b<4;b++){
+  const v=hs(r,k,a*4+b+7)%7;let c=p[0];if(v===0)c=p[1];else if(v===1)c=p[2];
+  if(ore&&((a*4+b)*5+hv)%9<2)c=ore;
+  if(P&&(hs(r,k,3)+Math.floor(T*3))%23===a*4+b)c="#fff";
+  if(!P&&r===0&&a===0)c="#4cae3c";else if(!P&&r===0&&a===1&&b%2===0)c="#3a8f2f";
+  cx.fillStyle=c;cx.fillRect(xs[b],ys[a],xs[b+1]-xs[b],ys[a+1]-ys[a]);
+ }
+ cx.fillStyle="rgba(0,0,0,.25)";cx.fillRect(x,y+S-2,S,2);cx.fillRect(x+S-2,y,2,S);
+}
+function tunnel(x,y,r){
+ cx.fillStyle="#1b130d";cx.fillRect(x,y,S,S);
+ cx.fillStyle="#241a12";cx.fillRect(x+S*.25,y+S*.25,S*.25,S*.25);cx.fillRect(x+S*.6,y+S*.6,S*.2,S*.2);
+ if(r%5===4){cx.fillStyle="#5b3a1e";const w=Math.round(S/5);cx.fillRect(x,y,w,S);cx.fillRect(x+S-w,y,w,S)}
+}
+function miner(x,y){
+ const u=S/8,R=(a,b,w,h,c)=>{cx.fillStyle=c;cx.fillRect(Math.round(x+a*u),Math.round(y+b*u),Math.ceil(w*u),Math.ceil(h*u))};
+ R(2,0,4,2,"#ffcc33");R(3,0,2,1,"#fff7b0");R(2,2,4,2,"#f2b98a");R(3,3,1,1,"#222");R(5,3,1,1,"#222");
+ R(1,4,6,3,"#3d6fe0");R(2,7,1,1,"#222");R(5,7,1,1,"#222");
+ const up=digging&&Math.floor(T*8)%2===0;
+ R(7,up?1:4,1,3,"#8b5a2b");R(6,up?0:7,3,1,"#c3c8d6");
+}
+const SKY=["#4fb4f5","#68c1f7","#86cef9","#a3dafb","#bfe6fc","#d6f0fd"];
+function sky(sk){
+ if(sk<=0)return;
+ for(let i=0;i<6;i++){cx.fillStyle=SKY[i];cx.fillRect(0,Math.floor(i*sk/6),W,Math.ceil(sk/6)+1)}
+ cx.fillStyle="#ffe45e";cx.fillRect(W*.78,sk-S*7,S*2,S*2);cx.fillStyle="#fff7b0";cx.fillRect(W*.78+S*.4,sk-S*7+S*.4,S*.8,S*.8);
+ cx.fillStyle="#fff";
+ for(let i=0;i<3;i++){const cxp=((T*5+i*W/3)%(W+S*8))-S*4,cy=sk-S*(8-i*1.6);cx.fillRect(cxp,cy,S*3,S*.7);cx.fillRect(cxp+S*.7,cy-S*.5,S*1.6,S*.6)}
+ for(const k of [-5,5]){const tx=W/2+k*S;cx.fillStyle="#6b4423";cx.fillRect(tx-S*.2,sk-S*1.6,S*.4,S*1.6);cx.fillStyle="#2f8f3a";cx.fillRect(tx-S*.9,sk-S*2.6,S*1.8,S*1.2);cx.fillRect(tx-S*.5,sk-S*3.2,S,S*.7)}
+}
+const CM=new Map();
+(()=>{for(let r=6;r<GOAL-8;r+=7)for(const sd of[-1,1]){
+ if(hs(r,sd,9)%100>=72)continue;
+ const w=2+hs(r,sd,1)%3,h=2+hs(r,sd,2)%2,k0=2+hs(r,sd,3)%3,rr=r+hs(r,sd,4)%3,type=hs(r,sd,5)%4;
+ for(let dr=0;dr<h;dr++)for(let dc=0;dc<w;dc++){
+  if((dr===0||dr===h-1)&&(dc===0||dc===w-1)&&hs(r,sd,10+dr*4+dc)%2)continue;
+  CM.set((rr+dr)+","+(sd*(k0+dc)),{type,dc,w,top:dr===0,bot:dr===h-1});
+ }}})();
+function caveCell(x,y,r,k,o){
+ const u=S/8,R=(a,b,w,h,c)=>{cx.fillStyle=c;cx.fillRect(Math.round(x+a*u),Math.round(y+b*u),Math.ceil(w*u),Math.ceil(h*u))};
+ cx.fillStyle="#140d1a";cx.fillRect(x,y,S+1,S+1);
+ R(1,2,2,1,"#1d1425");R(5,5,2,1,"#1d1425");R(3,6,1,1,"#1d1425");
+ if(o.type===1){cx.fillStyle="rgba(255,150,40,"+(.09+.04*Math.sin(T*8+o.dc)).toFixed(3)+")";cx.fillRect(x,y,S,S)}
+ if(o.top)for(let i=0;i<3;i++)if(hs(r,k,20+i)%3===0){R(1+i*3,0,1.5,2,"#3a3044");R(1.25+i*3,2,1,1,"#3a3044")}
+ if(!o.bot)return;
+ R(0,7,8,1,"#2a2133");
+ const e=hs(r,k,30)%3!==0;
+ if(o.type===0&&e){const c=hs(r,k,31)%2?"#4fe3c1":"#c77dff";R(2,4,2,3,c);R(3,2,1,2,c);R(5,5,1,2,c);R(3,3,1,1,"#fff")}
+ else if(o.type===1&&o.dc===1){const f=Math.floor(T*8+k)%2;R(3.5,3,1,5,"#6b4423");R(3,1.5+f*.5,2,1.8,"#ff8a1f");R(3.5,2.2+f*.5,1,1,"#ffe45e")}
+ else if(o.type===2&&e){R(3,5,1,2,"#efe6d2");R(2,4,3,1.2,"#e0483c");R(2.5,4.2,.8,.6,"#fff")}
+ else if(o.type===3&&e){R(2,6,2,1,"#ffcc33");R(5,5,1,2,"#ffcc33");if((Math.floor(T*3)+k)%4===0)R(3,5,1,1,"#fff")}
+}
+function frame(t){
+ T=t/1000;mr+=(mrT-mr)*.22;camY+=((mr+1)*S-H*.45-camY)*.12;
+ cx.save();if(shake>0){cx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake)}
+ cx.fillStyle="#1b130d";cx.fillRect(-10,-10,W+20,H+20);
+ sky(-camY);
+ const r0=Math.max(0,Math.floor(camY/S)),r1=Math.floor((camY+H)/S)+1,km=Math.ceil(W/2/S)+1;
+ for(let r=r0;r<=r1;r++)for(let k=-km;k<=km;k++){
+  const x=Math.round(W/2+k*S-S/2),y=Math.round(r*S-camY);
+  if(r>=GOAL){
+   if(r<=GOAL+10){cx.fillStyle="#170f22";cx.fillRect(x,y,S+1,S+1);const h=Math.max(0,Math.round(9-1.15*Math.abs(k)));if(h>0&&r>=GOAL+10-h)tile(x,y,r,k,GP)}
+   else tile(x,y,r,k,["#2d2438","#221a2c","#3a2f48"]);
+  }else if(k===0&&r<depth)tunnel(x,y,r);
+  else{const o=CM.get(r+","+k);o?caveCell(x,y,r,k,o):tile(x,y,r,k)}
+ }
+ miner(W/2-S/2,Math.round(mr*S-camY));
+ const ps=Math.max(2,Math.round(S/7));
+ parts=parts.filter(p=>p.l>0);
+ for(const p of parts){p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.l-=.025;cx.fillStyle=p.c;cx.fillRect(Math.round(p.x),Math.round(p.y-camY),ps,ps)}
+ if(depth>1){const a=Math.min(.8,depth*.012),my=(mr+.5)*S-camY,g=cx.createRadialGradient(W/2,my,S*1.5,W/2,my,S*6);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,`rgba(0,0,0,${a})`);cx.fillStyle=g;cx.fillRect(-10,-10,W+20,H+20)}
+ cx.restore();
+ requestAnimationFrame(frame);
+}
+function burst(r,n,big,tc){const p=pal(r);for(let i=0;i<n;i++)parts.push({x:W/2+(Math.random()-.5)*S,y:r*S+S/2,vx:(Math.random()-.5)*(big?7:3.5),vy:-Math.random()*(big?6:3.5),l:1,c:(tc&&i%2)?tc:p[i%3]})}
+function coins(){for(let i=0;i<60;i++)parts.push({x:W/2+(Math.random()-.5)*S*4,y:(GOAL+1)*S,vx:(Math.random()-.5)*5,vy:-3-Math.random()*6,l:1.4,c:i%3?"#ffcc33":"#fff6b0"})}
+
+/* ---------- game ---------- */
+let qn,pos,order,list,running,tl,used,dug,cnt,tw,fin,tierCol=null,round,rq,rdug,rcnt,popT,wrong,qs=0,cdT;
+const KEY="minellion-save";
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+function rng(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}let a=h>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const sshuf=(a,seed)=>{const r=rng(seed);a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(r()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
+const mkOrder=()=>{const d=today(),idx=Q.map((_,k)=>k);return[...sshuf(idx,d+"a"),...sshuf(idx,d+"b"),...sshuf(idx,d+"c")]};
+function load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}}
+function save(x){try{localStorage.setItem(KEY,JSON.stringify(Object.assign({d:today(),depth,qn,round,rq,rdug,rcnt,cnt,dug,pos,used,done:false},x||{})))}catch(e){}}
+function hud(){$("qn").textContent="R"+round+" Q"+(rq+1)+"/10";cv.setAttribute("aria-label",`Miner ${depth} blocks down`)}
+function timerUI(){$("tfill").style.width=Math.max(0,tl/30*100)+"%";$("tfill").className=tl<10?"low":"";$("tnum").textContent=Math.max(0,Math.ceil(tl))}
+setInterval(()=>{if(!running)return;tl-=.1;timerUI();if(tl<=0){running=false;miss("TIME UP!")}},100);
+function digTo(target,ms,done){
+ digging=true;
+ const id=setInterval(()=>{
+  if(depth>=target){clearInterval(id);digging=false;done&&done();return}
+  depth++;mrT=depth-1;burst(depth-1,10,false,tierCol);beep([140,.03]);hud();
+ },ms);
+}
+function start(){
+ depth=0;mr=mrT=-1;parts=[];shake=0;digging=false;qn=0;used=false;dug=0;cnt=[0,0,0,0];fin=false;round=1;rq=0;rdug=0;rcnt=[0,0,0,0];pos=0;order=mkOrder();
+ clearInterval(cdT);$("end").classList.add("hide");size();showQ();
+}
+function nextQ(){qn++;pos++;rq++;if(rq>=10)return roundEnd();showQ()}
+function showQ(){
+ running=false;tl=30;timerUI();wrong=0;
+ const row=Q[order[pos]];list=[];row.slice(1).forEach((s,t)=>s.split(",").forEach(x=>list.push({n:x.split("/"),t})));
+ const inp=$("ans");inp.value="";inp.disabled=false;$("go").disabled=false;$("l1").disabled=used;
+ $("msg").textContent="";$("msg").style.color="";hud();
+ const el=$("q"),q=row[0];el.className="q";el.setAttribute("aria-label",q);el.textContent="";
+ clearInterval(tw);let n=0;
+ const typed=()=>{el.textContent=q;el.className="q done";running=true;inp.focus({preventScroll:true})};
+ if(RM)typed();else tw=setInterval(()=>{el.textContent=q.slice(0,++n);if(n>=q.length){clearInterval(tw);typed()}},20);
+ save();
+}
+function dl(a,b){const A=a.length,B=b.length,d=[];for(let i=0;i<=A;i++)d[i]=[i];for(let j=1;j<=B;j++)d[0][j]=j;
+ for(let i=1;i<=A;i++)for(let j=1;j<=B;j++){const c=a[i-1]===b[j-1]?0:1;d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1)}
+ return d[A][B]}
+function find(g){
+ const n=norm(g);if(!n)return null;const ns=n.replace(/ /g,"");
+ let best=null,bd=99;
+ for(const o of list)for(const a of o.n){
+  const m=norm(a),ms=m.replace(/ /g,"");
+  const d=(m===n||ms===ns)?0:dl(ms,ns);
+  if(d<bd||(d===bd&&best&&o.t<best[0].t)){bd=d;best=[o,a]}
+ }
+ const tol=ns.length<4?0:ns.length<6?1:ns.length<9?2:3;
+ return best&&bd<=tol?[best[0],best[1],bd]:null;
+}
+function popup(txt,col){const p=$("pop");p.textContent=txt;p.style.color=col;p.classList.remove("hide");p.style.animation="none";void p.offsetWidth;if(!RM)p.style.animation="pop 1.6s steps(10) forwards";clearTimeout(popT);popT=setTimeout(()=>p.classList.add("hide"),1700)}
+function sparkle(c){for(let i=0;i<36;i++)parts.push({x:W/2+(Math.random()-.5)*S*3,y:mr*S+S/2,vx:(Math.random()-.5)*6,vy:-2-Math.random()*5,l:1.2,c:i%2?c:"#fff"})}
+const eg=()=>shuf(list).slice(0,3).map(o=>o.n[0]).join(", ").toUpperCase();
+function lockUI(on){$("ans").disabled=on;$("go").disabled=on}
+function submit(){
+ if(!running)return;
+ const v=$("ans").value;if(!norm(v)){$("msg").textContent="TYPE AN ANSWER FIRST.";return}
+ running=false;lockUI(true);$("msg").style.color="";$("msg").textContent="SWINGING PICKAXE...";beep([220,.08,330,.08]);
+ setTimeout(()=>{
+  const m=find(v);
+  if(m){
+   const t=m[0].t,n=Math.min(BL[t],GOAL-depth);
+   cnt[t]++;rcnt[t]++;tierCol=TC[t];popup(TN[t]+"!",TC[t]);if(t>=2)sparkle(TC[t]);
+   save({depth:depth+n,dug:dug+n,rdug:rdug+n});
+   beep([523,.1,659,.1,784,.18]);
+   $("msg").style.color=TC[t];
+   $("msg").textContent=`CLINK! ${m[1].toUpperCase()}${m[2]?" (SPELLING FIXED)":""}: ${TN[t]}${t>1?"!":""} DIGGING ${n} BLOCKS.`;
+   setTimeout(()=>digTo(depth+n,RM?30:Math.max(60,Math.min(150,1600/n)),()=>{dug+=n;rdug+=n;after()}),700);
+  }else{
+   wrong++;beep([196,.15,147,.15]);
+   $("msg").textContent="NOT QUITE. KEEP GUESSING!";
+   lockUI(false);$("ans").value="";$("ans").focus();running=true;
+  }
+ },800);
+}
+function after(){if(depth>=GOAL)return win();nextQ()}
+function miss(why){
+ lockUI(true);beep([196,.15,147,.15,98,.3]);$("msg").style.color="";popup(why,"#ff4d4d");
+ $("msg").textContent=`${why} NO DIG. ANSWERS INCLUDED: ${eg()}`;
+ setTimeout(nextQ,2800);
+}
+function endBox(h,lines,btn,fn){
+ const e=$("end");e.classList.remove("hide");
+ e.innerHTML=`<h2>${h}</h2>${lines.map(l=>`<p>${l}</p>`).join("")}<button class="b g" id="again">${btn}</button>`;
+ $("again").onclick=fn;$("again").focus();
+}
+function lockBox(h,lines){
+ const e=$("end"),day=today();e.classList.remove("hide");
+ e.innerHTML=`<h2>${h}</h2>${lines.map(l=>`<p>${l}</p>`).join("")}<p>THAT’S TODAY’S DIG DONE. COME BACK TOMORROW!</p><p id="cd" style="color:var(--gem)"></p>`;
+ clearInterval(cdT);
+ const tick=()=>{
+  if(today()!==day){clearInterval(cdT);e.innerHTML=`<h2>NEW DAY!</h2><p>A FRESH MINE AWAITS.</p><button class="b g" id="again">PLAY TODAY’S DIG</button>`;$("again").onclick=start;return}
+  const n=new Date(),ms=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1)-n,t=Math.floor(ms/1000);
+  const c=$("cd");if(c)c.textContent="NEXT DIG IN "+pad(Math.floor(t/3600))+":"+pad(Math.floor(t%3600/60))+":"+pad(t%60);
+ };
+ tick();cdT=setInterval(tick,1000);
+}
+const tiers=()=>TN.map((n,i)=>`${n} ${cnt[i]}`).join(" · ");
+function finish(h,lines){fin=true;running=false;save({done:true,res:{h,lines}})}
+function roundEnd(){
+ running=false;lockUI(true);save();
+ endBox(`ROUND ${round} COMPLETE`,[`BLOCKS DUG THIS ROUND: ${rdug}`,TN.map((n,i)=>`${n} ${rcnt[i]}`).join(" · "),`TOTAL DEPTH: ${depth} BLOCKS`],"NEXT ROUND",nextRound);
+}
+function nextRound(){round++;rq=0;rdug=0;rcnt=[0,0,0,0];used=false;$("end").classList.add("hide");showQ()}
+function win(){
+ if(fin)return;mrT=GOAL;coins();beep([392,.1,523,.1,659,.1,1047,.3]);
+ $("msg").textContent="GOLD! A HUGE PILE OF IT.";
+ const u=qn+1,rk=u<=30?"LEGEND":u<=42?"MASTER MINER":u<=55?"SEASONED MINER":u<=75?"APPRENTICE":"GREENHORN";
+ const h="YOU REACHED THE GOLD!",lines=[`${GOAL} BLOCKS IN ${u} QUESTIONS (${round} ROUND${round>1?"S":""})`,tiers(),`RANK: ${rk}`];
+ finish(h,lines);setTimeout(()=>lockBox(h,lines),1800);
+}
+$("quit").onclick=()=>{
+ if(fin||digging)return;
+ if(!qs){qs=1;$("quit").textContent="SURE?";setTimeout(()=>{qs=0;$("quit").textContent="QUIT"},3000);return}
+ clearInterval(tw);lockUI(true);
+ const h="YOU SURFACED!",lines=[`DEPTH: ${depth} BLOCKS`,`QUESTIONS: ${qn}`,tiers()];
+ finish(h,lines);lockBox(h,lines);
+};
+function boot(){
+ const s=load();
+ if(!s||s.d!==today())return start();
+ order=mkOrder();
+ depth=s.depth;qn=s.qn;round=s.round;rq=s.rq;rdug=s.rdug;rcnt=s.rcnt;cnt=s.cnt;dug=s.dug;pos=s.pos;used=s.used;fin=false;digging=false;parts=[];shake=0;
+ mr=mrT=depth>=GOAL?GOAL:depth-1;size();
+ if(s.done&&s.res){fin=true;return lockBox(s.res.h,s.res.lines)}
+ if(depth>=GOAL)return win();
+ hud();
+ if(rq>=10)return roundEnd();
+ qn++;pos++;rq++;
+ if(rq>=10)return roundEnd();
+ showQ();$("msg").textContent="WELCOME BACK. YOUR LAST QUESTION WAS SKIPPED.";
+}
+$("go").onclick=submit;
+$("ans").onkeydown=e=>{if(e.key==="Enter")submit()};
+$("l1").onclick=()=>{
+ if(!running||used)return;used=true;$("l1").disabled=true;
+ const h=shuf(list).slice(0,2).map(o=>{const n=o.n[0];return n[0]+n.slice(1).replace(/\S/g,"·")});
+ $("msg").textContent="BOOM! RUBBLE CLEARS: "+h.join("  OR  ").toUpperCase();beep([110,.2,80,.25]);$("ans").focus();
+};
+$("snd").onclick=()=>{snd=!snd;$("snd").textContent=snd?"SND ON":"SND OFF";$("snd").setAttribute("aria-pressed",snd)};
+addEventListener("resize",size);
+boot();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
